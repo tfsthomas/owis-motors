@@ -1,13 +1,17 @@
 import serial
 import time
 
+x=1
+y=2
+z=3
+
 class MotorOutOfRangeError(Exception):
     pass
 
 class PhyMotionController():
     def __init__(self, comport, timeout=0.5, axes_config=None):
         self.timeout = timeout
-        self.movement_boundaries = (None, None, (0, 0), (0, 0), (0, 0), None, None)  # copperL, copperR, ZaberL, ZaberR
+        self.movement_boundaries = ((0,0), (0,0), (0, 0), None, None, None, None)
         if type(comport) is int:
             self.comport = 'COM' + str(comport)
         else:
@@ -31,18 +35,17 @@ class PhyMotionController():
             self.axes_config = axes_config
 
     def init_xyz_xrayoptics(self):
-        # config_axis1 = {'axis': 1, 'active': True, 'moving': False, 'frequency': 440, 'rampfrequency': 4000,
-        #                 'stepresolution': 0, 'laufcurrent': 60}
-        # config_axis2 = {'axis': 2, 'active': True, 'moving': False, 'frequency': 440, 'rampfrequency': 4000,
-        #                 'stepresolution': 0, 'laufcurrent': 60}
-        config_axis3 = {'axis': 3, 'active': True, 'moving': False, 'frequency': int(self.send_command('3.1P14R')), 'rampfrequency': int(self.send_command('3.1P15R')),
+        config_axis1 = {'axis': 1, 'active': True, 'moving': False, 'frequency': int(self.send_command('1.1P14R')), 'rampfrequency': int(self.send_command('1.1P15R')),
                         'stepresolution': 10, 'laufcurrent': 60}
+        config_axis2 = {'axis': 2, 'active': True, 'moving': False, 'frequency': int(self.send_command('2.1P14R')), 'rampfrequency': int(self.send_command('2.1P15R')),
+                        'stepresolution': 10, 'laufcurrent': 60}
+        config_axis3 = {'axis': 3, 'active': True, 'moving': False, 'frequency': int(self.send_command('3.1P14R')), 'rampfrequency': int(self.send_command('3.1P15R')),
+                        'stepresolution': 9, 'laufcurrent': 60}
         config_axis4 = {'axis': 4, 'active': True, 'moving': False, 'frequency': int(self.send_command('4.1P14R')), 'rampfrequency': int(self.send_command('4.1P15R')),
                         'stepresolution': 10, 'laufcurrent': 60}
         config_axis5 = {'axis': 5, 'active': True, 'moving': False, 'frequency': int(self.send_command('5.1P14R')), 'rampfrequency': int(self.send_command('5.1P15R')),
                         'stepresolution': 9, 'laufcurrent': 60}
-        ##    phym1.axes_config = [config_axis1, config_axis2]
-        self.axes_config = [config_axis3, config_axis4, config_axis5]
+        self.axes_config = [config_axis1, config_axis2, config_axis3]
 
     def configure_controller(self):
         self.number_of_axis = int(self.send_command('S')[0])  # get number of axis0
@@ -96,12 +99,10 @@ class PhyMotionController():
             return
 
     def update_boundaries(self):
-        axis3 = (-20000 / self.calc_step_len(3), 20000 / self.calc_step_len(3))
-        axis4 = (-30000 / self.calc_step_len(4), 30000 / self.calc_step_len(4))
-        axis5 = (-10000 / self.calc_step_len(5), 10000 / self.calc_step_len(5))
-        self.movement_boundaries = (None, None, axis3, axis4, axis5, None, None)  # copperL, copperR, ZaberL, ZaberR
-
-    # Very Nice List of Dictionaries for different axis
+        axis1 = (-20000 / self.calc_step_len(x), 20000 / self.calc_step_len(x))
+        axis2 = (-30000 / self.calc_step_len(y), 30000 / self.calc_step_len(y))
+        axis3 = (-10000 / self.calc_step_len(z), 10000 / self.calc_step_len(z))
+        self.movement_boundaries = (axis1, axis2, axis3, None, None, None, None)  # copperL, copperR, ZaberL, ZaberR
 
     def my_readline(self, delimiter=b'\x03'):
         read_byte = self.s.read(1)
@@ -115,7 +116,6 @@ class PhyMotionController():
         send_str = '\x020' + command + ':XX\x03'
         self.s.write(send_str.encode('ASCII'))
         answer = self.receive_command()
-        # print('Answer',answer)
         return self.translate_input(answer)
 
     def receive_command(self, timeout=None):
@@ -171,14 +171,12 @@ class PhyMotionController():
             print('Cannot set zero position of axis since it is moving')
 
     def set_as_grand_zero_position(self):
-        self.set_as_zero_position(3)
-        self.set_as_zero_position(4)
-        self.set_as_zero_position(5)
+        self.set_as_zero_position(x)
+        self.set_as_zero_position(y)
+        self.set_as_zero_position(z)
         print('~~~Grand zero position for axes set~~~')
 
     def read_multiple_position(self, history_bool= True):
-        # position_vec = [int(self.read_position(3)),int(self.read_position(4)),int(self.read_position(5))]
-        # return(position_vec)
         self.s.reset_input_buffer()
         send_str = ''
         for i in range(1, self.number_of_axis + 1):
@@ -188,7 +186,7 @@ class PhyMotionController():
         if history_bool:
             for i, pos in enumerate(self.position_vec):
                 self.position_history[i].append(pos)
-        return (self.position_vec)
+        return self.position_vec
 
     def block_movement(self, axis):
         while self.read_movement(axis=axis) == True:
@@ -256,7 +254,7 @@ class PhyMotionController():
             self.save_file(axis=axis)
 
     def calc_step_len(self, axis):
-        if axis == 3 or axis == 4:
+        if axis == x or axis == y:
             dist_rev = 1000
             step_res = self._axes_config[axis - 1]['stepresolution']
             step_res_str = ''
@@ -300,228 +298,6 @@ class PhyMotionController():
             return False
 
 
-    # def move_rel(self, axis, steps):
-    #     file_previous_position = open('previous_position_' + str(axis) + '.txt', 'r')
-    #     previous_position = file_previous_position.read()
-    #     file_previous_position.close()
-    #     print('Initial position for axis ' + str(axis) + ': ' + previous_position + ' micrometers')
-    #     phym1.set_position(axis, int(previous_position))
-    #     if self.movement_boundaries[axis - 1] is not None:
-    #         if not self.movement_boundaries[axis - 1][0] < steps + self.position_history[axis - 1][-1] < \
-    #             self.movement_boundaries[axis - 1][1]:
-    #                 raise MotorOutOfRangeError
-    #     self.block_movement(axis=axis)
-    #     if self._axes_config[axis - 1]['moving'] == False:
-    #         self.send_command(str(axis) + '.1{0:+d}'.format(steps))
-    #         print('axis ' + str(axis) + ' moving...')
-    #     self.block_movement(axis=axis)
-    #     if self._axes_config[axis - 1]['moving'] == False:
-    #         file_edit_position = open('previous_position_' + str(axis) + '.txt', 'w')
-    #         file_edit_position.write(str(int(phym1.read_position(axis))))
-    #         file_edit_position.close()
-    #         file_new_position = open('previous_position_' + str(axis) + '.txt', 'r')
-    #         new_position = file_new_position.read()
-    #         file_new_position.close()
-    #         print('New position for axis ' + str(axis) + ': ' + new_position + ' micrometers')
-    #
-    # def move_abs(self, axis, steps):
-    #     if self.movement_boundaries[axis - 1] is not None:
-    #         if not self.movement_boundaries[axis - 1][0] < steps < self.movement_boundaries[axis - 1][1]:
-    #             raise MotorOutOfRangeError
-    #     self.read_position(axis=axis)
-    #     position = self.read_position(axis)
-    #     rel_dist = steps - position
-    #     self.move_rel(axis, rel_dist)
-    #     if rel_dist is 0:
-    #         print('Axis already at end position')
-    #
-    # def move_multiple_rel(self, input_vec):
-    #     command_str = ''
-    #     for el in input_vec:
-    #         axis = el[0]
-    #         steps = el[1]
-    #         file_previous_position = open('previous_position_' + str(axis) + '.txt', 'r')
-    #         previous_position = file_previous_position.read()
-    #         file_previous_position.close()
-    #         print('Initial position for axis ' + str(axis) + ': ' + previous_position + ' micrometers')
-    #         phym1.set_position(axis, int(previous_position))
-    #         position = (self.read_position(axis=axis)) / self.calc_step_len(axis)
-    #         end_position = position + steps
-    #         if self.movement_boundaries[axis - 1] is not None:
-    #             if not self.movement_boundaries[axis - 1][0] < end_position < self.movement_boundaries[axis - 1][1]:
-    #                 raise MotorOutOfRangeError
-    #         command_str += str(axis) + '.1{0:+d} '.format(int(steps))
-    #         print('axis ' + str(axis) + ' moving...')
-    #     command_str = command_str
-    #     self.send_command(command_str)
-    #     self.block_movement(axis=axis)
-    #     for el in input_vec:
-    #         axis = el[0]
-    #         steps = el[1]
-    #         if self._axes_config[axis - 1]['moving'] == False:
-    #             file_edit_position = open('previous_position_' + str(axis) + '.txt', 'w')
-    #             file_edit_position.write(str(int(phym1.read_position(axis))))
-    #             file_edit_position.close()
-    #             file_new_position = open('previous_position_' + str(axis) + '.txt', 'r')
-    #             new_position = file_new_position.read()
-    #             file_new_position.close()
-    #             print('New position for axis ' + str(axis) + ': ' + new_position + ' micrometers')
-    #
-    # def move_multiple_abs(self, input_vec, history_bool = True):
-    #     old_pos = self.read_multiple_position(history_bool=history_bool)
-    #     command_str = ''
-    #     for el in input_vec:
-    #         axis = el[0]
-    #         end_position = el[1]
-    #         file_previous_position = open('previous_position_' + str(axis) + '.txt', 'r')
-    #         previous_position = file_previous_position.read()
-    #         file_previous_position.close()
-    #         print('Initial position for axis ' + str(axis) + ': ' + previous_position + ' micrometers')
-    #         phym1.set_position(axis, int(previous_position))
-    #         if self.movement_boundaries[axis - 1] is not None:
-    #             if not self.movement_boundaries[axis - 1][0] < end_position < self.movement_boundaries[axis - 1][1]:
-    #                 raise MotorOutOfRangeError
-    #         command_str += str(axis) + '.1{0:+d} '.format(int(end_position - old_pos[axis - 1]))
-    #         if end_position - old_pos[axis - 1] is 0:
-    #             print('Axis ' + str(axis) + ' is already at end position')
-    #         else:
-    #             print('axis ' + str(axis) + ' is moving...')
-    #     command_str = command_str[:-1]
-    #     self.send_command(command_str)
-    #     self.block_movement(axis=axis)
-    #     for el in input_vec:
-    #         axis = el[0]
-    #         end_position = el[1]
-    #         if self._axes_config[axis - 1]['moving'] == False:
-    #             file_edit_position = open('previous_position_' + str(axis) + '.txt', 'w')
-    #             file_edit_position.write(str(int(phym1.read_position(axis))))
-    #             file_edit_position.close()
-    #             file_new_position = open('previous_position_' + str(axis) + '.txt', 'r')
-    #             new_position = file_new_position.read()
-    #             file_new_position.close()
-    #             print('New position for axis ' + str(axis) + ': ' + new_position + ' micrometers')
-    #
-    # def move_inf(self, axis, direction):
-    #     if self.movement_boundaries[axis - 1] is not None:
-    #         raise MotorOutOfRangeError
-    #     if self._axes_config[axis - 1]['moving'] is not True:
-    #     self._axes_config[axis - 1]['moving'] = True
-    #     self.send_command(str(axis) + '.1L' + str(direction))
-    #
-    # def calc_rounds_per_sec(self, axis=None):
-    #     if axis is not None:
-    #         frequency = self._axes_config[axis - 1]['frequency']
-    #         step_res = self._axes_config[axis - 1]['stepresolution']
-    #         step_fraction = self.step_res_dict[str(step_res)]
-    #         rps = frequency / (self.motor_steps * step_fraction)
-    #         print('RPS: ' + str(rps))
-    #         return rps
-    #
-    # def calc_frequency(self, axis=None, rps=None):
-    #     if axis is not None and rps is not None:
-    #         step_res = self._axes_config[axis - 1]['stepresolution']
-    #         step_fraction = self.step_res_dict[str(step_res)]
-    #         frequency = rps * self.motor_steps * step_fraction
-    #         # print('FreQ: ' + str(frequency))
-    #         return frequency
-    #
-    # def calc_revolutions(self, axis=None):
-    #     if axis is not None:
-    #         pos = int(self.send_command(str(axis) + '.1P20R'))
-    #         step_res = self._axes_config[axis - 1]['stepresolution']
-    #         step_fraction = self.step_res_dict[str(step_res)]
-    #         revolutions = pos / (self.motor_steps * step_fraction)
-    #         return revolutions
-    #
-    # def set_frequency(self, axis, frequency):  # frequency in Hz and Stepsize P45
-    #     self.send_command(str(axis) + '.1P14S{0:+d}'.format(frequency))
-    #
-    # def read_frequency(self, axis):  # frequency in Hz and Stepsize P45
-    #     frequency = int(self.send_command(str(axis) + '.1P14R'))
-    #     print('Frequency: ' + '{0:+d}'.format(frequency))
-
-
 if __name__ == "__main__":
     phym1 = PhyMotionController('COM11')
     phym1.init_xyz_xrayoptics()
-    # phym1.move_multiple_dist_rel([[3,-2000]])
-
-    #    phym1.move_dist(3,-1000)
-    # phym1.move_multiple_dist_rel([[3,9000],[4,9000],[5,5000]])
-    #    phym1.move_multiple_dist_abs([[3,0],[4,0],[5,0]])
-
-
-    # phym1.move_multiple_abs([[3,0],[4,0],[5,-1]])
-    # phym1.move_multiple_dist_abs([[3,15000],[4,15000],[5,5000]])
-    # phym1.move_multiple_dist_abs([[3,0],[4,0],[5,0]])
-    # phym1.set_as_grand_zero_position()
-    # phym1.move_multiple_rel([[3,-1000],[4,-1000],[5,-1000]])
-
-    #    while True:
-    #        try:
-    #            xcoordinate = int(input('enter x coordintate of end position(steps): '))
-    #            phym1.axes_config = {'axis': 3, 'active': True, 'frequency': int(.25 * abs(xcoordinate-phym1.read_position(3)))}
-    #            ycoordinate = int(input('enter y coordintate of end position(steps): '))
-    #            phym1.axes_config = {'axis': 4, 'active': True, 'frequency': int(.25 * abs(ycoordinate-phym1.read_position(4)))}
-    #            zcoordinate = int(input('enter z coordintate of end position(steps): '))
-    #            phym1.axes_config = {'axis': 5, 'active': True, 'frequency': int(.25 * abs(zcoordinate-phym1.read_position(5)))}
-    #            phym1.move_multiple_abs([[3,xcoordinate],[4,ycoordinate],[5,zcoordinate]])
-    #        except Exception as e:
-    #            print('ERROR:',e)
-
-##    while True:
-##        try:
-##            xcoordinate = int(input('enter x coordinate of end position(distance in micrometers): '))
-##            phym1.axes_config = {'axis': 3, 'active': True}
-##            ycoordinate = int(input('enter y coordinate of end position(distance in micrometers): '))
-##            phym1.axes_config = {'axis': 4, 'active': True}
-##            zcoordinate = int(input('enter z coordinate of end position(distance in micrometers): '))
-##            phym1.axes_config = {'axis': 5, 'active': True}
-##            phym1.move_multiple_dist_abs([[3, xcoordinate], [4, ycoordinate], [5, zcoordinate]])
-##        except Exception as e:
-##            print('ERROR:', e)
-##
-##    while True:
-##        try:
-##            xdistance = int(input('enter relative distance of x position (distance in micrometers): '))
-##            phym1.axes_config = {'axis': 3, 'active': True}
-##            ydistance = int(input('enter relative distance of y position (distance in micrometers): '))
-##            phym1.axes_config = {'axis': 4, 'active': True}
-##            zdistance = int(input('enter relative distance of z position (distance in micrometers): '))
-##            phym1.axes_config = {'axis': 5, 'active': True}
-##            phym1.move_multiple_dist_rel([[3, xdistance], [4, ydistance], [5, zdistance]])
-##        except Exception as e:
-##            print('ERROR:' , e)
-
-        ##    phym1.stop_all()
-        ##    phym1.send_command(command='2.1L+')
-        ##    phym1.read_movement(axis=1)
-
-        ##    print(phym1._axes_config[1 - 1]['moving'])
-        ##    print(phym1._axes_config[3 - 1]['moving'])
-        ##    print(phym1.read_position(3))
-
-        ##    time.sleep(1)
-        ##    phym1.move_rel(axis=1, steps=-1000)
-        ##    print(phym1.read_position(1))
-        ##    phym1.move_abs(axis=1, steps= 836000)
-        ##    phym1.move_abs(axis=1, steps= 836050)
-        ##    phym1.move_abs(axis=1, steps= 836000)
-        ##    phym1.move_abs(axis=1, steps= 836050)
-        ##        phym1.read_frequency(1)
-
-
-        ##    phym1.stop_all()
-        ##    phym1.move_inf(1, '+')
-        ##    phym1.move_inf(2, '+')
-        # #phym1.stop_all()
-        ##    while True:
-        ##        try:
-        ##            tone = int(input('play tone'))
-        ##            phym1.axes_config = {'axis': 1, 'active': True, 'frequency': int(440 * 2 ** (tone / 12))}
-        ##        except Exception:
-        ##            pass
-        # time.sleep(5)
-        # phym1.move_inf(1,'+')
-        # time.sleep(5)
-        # phym1.stop_all()
